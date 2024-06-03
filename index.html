@@ -51,90 +51,101 @@
   <button id="scanButton">SCAN</button>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const video = document.getElementById('preview');
-      const canvasElement = document.getElementById('canvas');
-      const canvas = canvasElement.getContext('2d');
-      const outputData = document.getElementById('outputData');
-      const scanButton = document.getElementById('scanButton');
-      const fileInput = document.getElementById('fileInput');
-      let scanning = false;
-      let stream;
+    class QRCodeScanner {
+      constructor({ videoId, canvasId, fileInputId, scanButtonId, outputId, onSuccess }) {
+        this.video = document.getElementById(videoId);
+        this.canvasElement = document.getElementById(canvasId);
+        this.canvas = this.canvasElement.getContext('2d');
+        this.fileInput = document.getElementById(fileInputId);
+        this.scanButton = document.getElementById(scanButtonId);
+        this.outputElement = document.getElementById(outputId);
+        this.onSuccess = onSuccess;
 
-      scanButton.addEventListener('click', startScanning);
-      fileInput.addEventListener('change', handleFile);
+        this.scanning = false;
+        this.stream = null;
 
-      function startScanning() {
-        if (scanning) return;
-        scanning = true;
-        outputData.innerText = '';
-        scanButton.style.display = 'none';
-        canvasElement.style.display = 'block';
+        this.scanButton.addEventListener('click', () => this.startScanning());
+        this.fileInput.addEventListener('change', (event) => this.handleFile(event));
+
+        this.canvasElement.style.display = 'none';
+        this.fileInput.style.display = 'none';
+      }
+
+      startScanning() {
+        if (this.scanning) return;
+        this.scanning = true;
+        this.outputElement.innerText = '';
+        this.scanButton.style.display = 'none';
+        this.canvasElement.style.display = 'block';
+
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-          .then(s => {
-            stream = s;
-            video.srcObject = stream;
-            video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
-            video.play();
-            requestAnimationFrame(tick);
+          .then(stream => {
+            this.stream = stream;
+            this.video.srcObject = stream;
+            this.video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
+            this.video.play();
+            requestAnimationFrame(() => this.tick());
           })
           .catch(err => {
             console.error("Error accessing the camera: ", err);
             alert("Camera access is required to scan QR codes");
-            scanning = false;
-            scanButton.style.display = 'block';
-            canvasElement.style.display = 'none';
-            fileInput.style.display = 'block';
+            this.scanning = false;
+            this.scanButton.style.display = 'block';
+            this.canvasElement.style.display = 'none';
+            this.fileInput.style.display = 'block';
           });
       }
 
-      function tick() {
-        if (!scanning) return;
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          adjustCanvasSize();
-          canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-          const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+      tick() {
+        if (!this.scanning) return;
+
+        if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+          this.adjustCanvasSize();
+          this.canvas.drawImage(this.video, 0, 0, this.canvasElement.width, this.canvasElement.height);
+          const imageData = this.canvas.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height);
+
           if (code) {
-            outputData.innerText = code.data;
-            stopScanning();
+            this.onSuccess(code.data);
+            this.stopScanning();
             return;
           }
         }
-        requestAnimationFrame(tick);
+        requestAnimationFrame(() => this.tick());
       }
 
-      function adjustCanvasSize() {
+      adjustCanvasSize() {
         const maxDimension = 400;
         const windowSize = Math.min(window.innerWidth, window.innerHeight, maxDimension);
-        canvasElement.width = windowSize;
-        canvasElement.height = windowSize;
+        this.canvasElement.width = windowSize;
+        this.canvasElement.height = windowSize;
       }
 
-      function stopScanning() {
-        scanning = false;
-        if (stream) {
-          video.pause();
-          stream.getTracks().forEach(track => track.stop());
+      stopScanning() {
+        this.scanning = false;
+        if (this.stream) {
+          this.video.pause();
+          this.stream.getTracks().forEach(track => track.stop());
         }
-        scanButton.style.display = 'block';
-        canvasElement.style.display = 'none';
-        fileInput.style.display = 'none';
+        this.scanButton.style.display = 'block';
+        this.canvasElement.style.display = 'none';
+        this.fileInput.style.display = 'none';
       }
 
-      function handleFile(event) {
+      handleFile(event) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = (e) => {
           const img = new Image();
-          img.onload = function() {
-            adjustCanvasSize();
-            canvas.drawImage(img, 0, 0, canvasElement.width, canvasElement.height);
-            const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          img.onload = () => {
+            this.adjustCanvasSize();
+            this.canvas.drawImage(img, 0, 0, this.canvasElement.width, this.canvasElement.height);
+            const imageData = this.canvas.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height);
+
             if (code) {
-              outputData.innerText = code.data;
+              this.onSuccess(code.data);
             } else {
               alert("No QR code found in the image.");
             }
@@ -143,10 +154,19 @@
         };
         reader.readAsDataURL(file);
       }
+    }
 
-      // Initial state
-      canvasElement.style.display = 'none';
-      fileInput.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', () => {
+      const qrScanner = new QRCodeScanner({
+        videoId: 'preview',
+        canvasId: 'canvas',
+        fileInputId: 'fileInput',
+        scanButtonId: 'scanButton',
+        outputId: 'outputData',
+        onSuccess: (decodedData) => {
+          document.getElementById('outputData').innerText = decodedData;
+        }
+      });
     });
   </script>
 </body>
