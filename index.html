@@ -32,6 +32,11 @@
       font-size: 18px;
       margin-top: 20px;
     }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -39,6 +44,7 @@
   <video id="preview"></video>
   <canvas id="canvas"></canvas>
   <p>Scanned QR Code Data: <span id="outputData"></span></p>
+  <button id="scanButton">SCAN</button>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -46,21 +52,35 @@
       const canvasElement = document.getElementById('canvas');
       const canvas = canvasElement.getContext('2d');
       const outputData = document.getElementById('outputData');
+      const scanButton = document.getElementById('scanButton');
+      let scanning = false;
+      let stream;
 
-      // Access the user's webcam
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
-          video.srcObject = stream;
-          video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
-          video.play();
-          requestAnimationFrame(tick);
-        })
-        .catch(err => {
-          console.error("Error accessing the camera: ", err);
-          alert("Camera access is required to scan QR codes");
-        });
+      scanButton.addEventListener('click', startScanning);
+
+      function startScanning() {
+        if (scanning) return;
+        scanning = true;
+        outputData.innerText = '';
+        scanButton.disabled = true;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(s => {
+            stream = s;
+            video.srcObject = stream;
+            video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
+            video.play();
+            requestAnimationFrame(tick);
+          })
+          .catch(err => {
+            console.error("Error accessing the camera: ", err);
+            alert("Camera access is required to scan QR codes");
+            scanning = false;
+            scanButton.disabled = false;
+          });
+      }
 
       function tick() {
+        if (!scanning) return;
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
           adjustCanvasSize();
           canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
@@ -72,6 +92,8 @@
             drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
             drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
             drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+            stopScanning();
+            return;
           }
         }
         requestAnimationFrame(tick);
@@ -80,7 +102,6 @@
       function adjustCanvasSize() {
         const maxDimension = 400;
         const windowSize = Math.min(window.innerWidth, window.innerHeight, maxDimension);
-
         canvasElement.width = windowSize;
         canvasElement.height = windowSize;
       }
@@ -92,6 +113,13 @@
         canvas.lineWidth = 4;
         canvas.strokeStyle = color;
         canvas.stroke();
+      }
+
+      function stopScanning() {
+        scanning = false;
+        video.pause();
+        stream.getTracks().forEach(track => track.stop());
+        scanButton.disabled = false;
       }
     });
   </script>
