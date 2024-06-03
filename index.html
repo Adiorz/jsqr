@@ -90,10 +90,6 @@
           const code = jsQR(imageData.data, imageData.width, imageData.height);
           if (code) {
             outputData.innerText = code.data;
-            drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-            drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-            drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-            drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
             stopScanning();
             return;
           }
@@ -106,15 +102,6 @@
         const windowSize = Math.min(window.innerWidth, window.innerHeight, maxDimension);
         canvasElement.width = windowSize;
         canvasElement.height = windowSize;
-      }
-
-      function drawLine(begin, end, color) {
-        canvas.beginPath();
-        canvas.moveTo(begin.x, begin.y);
-        canvas.lineTo(end.x, end.y);
-        canvas.lineWidth = 4;
-        canvas.strokeStyle = color;
-        canvas.stroke();
       }
 
       function stopScanning() {
