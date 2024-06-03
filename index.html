@@ -9,10 +9,21 @@
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 20px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
     }
     video, canvas {
       border: 1px solid #ccc;
       margin-top: 10px;
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: auto;
     }
     p {
       font-size: 18px;
@@ -22,8 +33,8 @@
 </head>
 <body>
   <h1>QR Code Scanner</h1>
-  <video id="preview" width="400" height="300" style="display:none;"></video>
-  <canvas id="canvas" width="400" height="300"></canvas>
+  <video id="preview" style="display:none;"></video>
+  <canvas id="canvas"></canvas>
   <p>Scanned QR Code Data: <span id="outputData"></span></p>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
@@ -34,17 +45,21 @@
       const outputData = document.getElementById('outputData');
 
       // Access the user's webcam
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(stream => {
-        video.srcObject = stream;
-        video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
-        video.play();
-        requestAnimationFrame(tick);
-      });
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+          video.srcObject = stream;
+          video.setAttribute("playsinline", true); // Required to tell iOS safari we don't want fullscreen
+          video.play();
+          requestAnimationFrame(tick);
+        })
+        .catch(err => {
+          console.error("Error accessing the camera: ", err);
+          alert("Camera access is required to scan QR codes");
+        });
 
       function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvasElement.height = video.videoHeight;
-          canvasElement.width = video.videoWidth;
+          adjustCanvasSize();
           canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
           const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height);
@@ -57,6 +72,21 @@
           }
         }
         requestAnimationFrame(tick);
+      }
+
+      function adjustCanvasSize() {
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        const windowAspectRatio = window.innerWidth / window.innerHeight;
+
+        if (windowAspectRatio > aspectRatio) {
+          // Window is wider than the video aspect ratio
+          canvasElement.width = window.innerHeight * aspectRatio;
+          canvasElement.height = window.innerHeight;
+        } else {
+          // Window is narrower than or equal to the video aspect ratio
+          canvasElement.width = window.innerWidth;
+          canvasElement.height = window.innerWidth / aspectRatio;
+        }
       }
 
       function drawLine(begin, end, color) {
