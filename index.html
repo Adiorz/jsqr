@@ -62,7 +62,8 @@
         if (scanning) return;
         scanning = true;
         outputData.innerText = '';
-        scanButton.disabled = true;
+        scanButton.style.display = 'none';
+        canvasElement.style.display = 'block';
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
           .then(s => {
             stream = s;
@@ -75,7 +76,8 @@
             console.error("Error accessing the camera: ", err);
             alert("Camera access is required to scan QR codes");
             scanning = false;
-            scanButton.disabled = false;
+            scanButton.style.display = 'block';
+            canvasElement.style.display = 'none';
           });
       }
 
@@ -119,8 +121,12 @@
         scanning = false;
         video.pause();
         stream.getTracks().forEach(track => track.stop());
-        scanButton.disabled = false;
+        scanButton.style.display = 'block';
+        canvasElement.style.display = 'none';
       }
+
+      // Initial state
+      canvasElement.style.display = 'none';
     });
   </script>
 </body>
